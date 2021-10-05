@@ -1,0 +1,116 @@
+---
+title: "homework03"
+author: "Brendan Zimmer"
+date: "10/5/2021"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#For my project I decided to look at visibility, season (month), and then split them by airport leaving from as my third pattern.  I created some visulization to show when the best time and month would be to have the least amount of delay. What I got out of this was that you would want to leave from EWR at 0700 in September because the mean visibility is highest in this month. But the only contradiction is that the visibility was not the highest in this hour. Still though, I believe my data still give a compeling enough argument to have September at 0700 from EWR to be the best for the least amount of delay.
+
+```{r, include=FALSE}
+library(nycflights13)
+library(dbplyr)
+library(ggplot2)
+library(tidyverse)
+```
+
+#This shows the lowest amount of delay and actaully shows planes arriving early. This is seperated by hour so there are multiple hours of each airport.
+```{r}
+delay_per_airline <- flights %>% 
+  group_by(carrier, hour, origin) %>% 
+  summarise(mean_arr_delay = mean(arr_delay, na.rm = T),
+            mean_dep_delay = mean(dep_delay, na.rm = T)) %>% 
+  ungroup() %>% 
+  arrange(mean_arr_delay)
+
+head(delay_per_airline)
+```
+
+```{r, include=FALSE}
+delay_total <- delay_per_airline %>% 
+  mutate(mean_total_delay = (mean_arr_delay + mean_dep_delay)) %>% 
+  arrange(mean_total_delay)
+```
+
+#This is the mean arrival delay against hour seperated by airport.  This shows that there is a small difference with EWR having a longer delay in 15-20 hours which you would want to avoid.  But with the lowest delay just by a bit in EWR this would be best time to go at 0700 from there.
+```{r}
+ggplot(delay_per_airline, aes(hour, mean_arr_delay)) +
+  geom_bar(stat = "identity") +
+  facet_wrap(~origin)
+```
+
+
+```{r, include=FALSE}
+weather3 <- weather %>% 
+  group_by(month, origin) %>% 
+  summarise(mean_vis = mean(visib, na.rm = T))
+```
+
+#The head of a table showing the mean arrival delay by month with its origin and mean visibility.  This data table was helpful in showing me how visibility correlated with mean delay and compare the months and origin.
+```{r}
+season_delay <- flights %>% 
+  group_by(month, origin) %>% 
+  summarise(mean_delay = mean(arr_delay, na.rm = T)) %>% 
+  left_join(weather3) %>% 
+  arrange(mean_delay)
+
+head(season_delay)
+```
+
+#This is the visulization of the table above, but more throughly seperated.  Again this shows the best month to leave is in September (9) from EWR with JFK right behind it.  But JFK also having the highest mean delay in June (6) suprisingly. The pattern in this graph showed me that September is the best month to go and there is usually a jump in delay between 5 and 7.
+```{r}
+ggplot(season_delay, aes(month, mean_delay)) +
+  geom_bar(stat = "identity") +
+  facet_wrap(~origin)
+```
+
+#This graph displays the mean visibility per month by airport.  This graph did not show much correlation for anything, but it is helpful seeing which months have the worst (smallest visibility) by airport.  It did show the pattern there was between each month as each airport had almost the same exact graph.
+```{r}
+ggplot(season_delay, aes(month, mean_vis)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  facet_wrap(~origin)
+```
+
+```{r, include=FALSE}
+weather2 = 
+  weather %>% 
+  group_by(hour, origin) %>% 
+  summarise(mean_vis = mean(visib, na.rm = T),
+            mean_wind_speed = mean(wind_speed, na.rm = T))
+```
+
+
+```{r, include=FALSE}
+delay_per_hour <- flights %>% 
+  group_by(hour, origin) %>% 
+  summarise(mean_arr_delay = mean(arr_delay, na.rm = T)) %>% 
+  left_join(weather2) %>% 
+  arrange(mean_arr_delay)
+```
+
+
+#this is the mean visibility by hour to help corollate between the average delay per hour and aiport.  Oddly enough EWR at one of its lowest visibility averages has the least amount of delay as you can see from my graph with delay average vs hour.  This could mean there is an importance to that airport and that visibility may not be as strong as a factor for EWR.
+```{r}
+ggplot(delay_per_hour, aes(hour, mean_vis)) +
+  geom_bar(stat = "identity") +
+  facet_wrap(~origin)
+```
+#Finally this visual shows the positive correlation between mean arrival delay and mean visibility.  There is a positive correlation bewtween each airporst, but EWR has the great one.  This again helps prove my point from my earlier statement that EWR is the best place to flight out from.
+```{r}
+ggplot(delay_per_hour, aes(mean_vis, mean_arr_delay, color = origin)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  facet_wrap(~origin)
+```
+
+#At the very end I also wanted to add in the wind speed average to see if there would be any time of correlation between that and delay.  What I found was that there was a smaller positive correlation between windspeed and delay. LGA had the biggest positive which would mean that wind speed has the biggest affect on delay for the airport compared to the others.  As for EWR, I would say that it is not as important as visibility.
+```{r}
+ggplot(delay_per_hour, aes(mean_wind_speed, mean_arr_delay, color = origin)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  facet_wrap(~origin)
+```
